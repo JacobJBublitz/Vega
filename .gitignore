@@ -1,1 +1,7 @@
 bazel-*/
+
+.vs/
+out/
+
+.vscode/
+build/
