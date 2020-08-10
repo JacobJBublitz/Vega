@@ -8,6 +8,8 @@
 #include <string>
 #include <vector>
 
+#include "vega/util/varint.h"
+
 namespace vega::server::protocol {
 
 class Packet {
@@ -54,32 +56,22 @@ class Packet {
   }
 
   inline int32_t ReadVarInt() {
-    int32_t value = 0;
-    for (size_t i = 0; i < kMaxVarIntBytes; ++i) {
-      auto b = ReadByte();
-      value = (value << 7) | (std::to_integer<int32_t>(b) & 0x7f);
-
-      if ((b & std::byte{0x80}) != std::byte{0}) break;
-    }
-
-    return value;
+    auto res = util::ReadVarInt(Data().subspan(offset_));
+    // TODO: Handle error
+    offset_ += res.second;
+    return res.first;
   }
 
   inline int64_t ReadVarLong() {
-    int64_t value = 0;
-    for (size_t i = 0; i < kMaxVarLongBytes; ++i) {
-      auto b = ReadByte();
-      value = (value << 7) | (std::to_integer<int32_t>(b) & 0x7f);
-
-      if ((b & std::byte{0x80}) != std::byte{0}) break;
-    }
-
-    return value;
+    auto res = util::ReadVarLong(Data().subspan(offset_));
+    // TODO: Handle error
+    offset_ += res.second;
+    return res.first;
   }
 
   inline std::string ReadVarString() {
     int32_t len = ReadVarInt();
-    std::vector<std::byte> str_data;
+    std::vector<std::byte> str_data(len);
     ReadBytes(str_data);
 
     return {reinterpret_cast<const char*>(str_data.data()),
@@ -101,38 +93,44 @@ class Packet {
     WriteBytes(buffer);
   }
 
-  void WriteVarInt(int32_t value) {
+  inline void WriteVarInt(int32_t value) {
     std::array<std::byte, kMaxVarIntBytes> buffer;
 
+    uint32_t uvalue = static_cast<uint32_t>(value);
     size_t byte_count;
     for (byte_count = 0; byte_count < buffer.size(); ++byte_count) {
-      std::byte b = std::byte{value & 0x7f};
+      std::byte b = std::byte{uvalue & 0x7f};
 
-      value >>= 7;
-      if (value != 0) b |= std::byte{0x80};
+      uvalue >>= 7;
+      if (uvalue != 0) b |= std::byte{0x80};
 
       buffer[byte_count] = b;
+
+      if ((b & std::byte{0x80}) == std::byte(0x00)) break;
     }
 
     WriteBytes(
-        static_cast<std::span<std::byte>>(buffer).subspan(0, byte_count));
+        static_cast<std::span<std::byte>>(buffer).subspan(0, byte_count + 1));
   }
 
-  void WriteVarLong(int64_t value) {
+  inline void WriteVarLong(int64_t value) {
     std::array<std::byte, kMaxVarLongBytes> buffer;
 
+    uint64_t uvalue = static_cast<uint64_t>(value);
     size_t byte_count;
     for (byte_count = 0; byte_count < buffer.size(); ++byte_count) {
-      std::byte b = std::byte{value & 0x7f};
+      std::byte b = std::byte{uvalue & 0x7f};
 
-      value >>= 7;
-      if (value != 0) b |= std::byte{0x80};
+      uvalue >>= 7;
+      if (uvalue != 0) b |= std::byte{0x80};
 
       buffer[byte_count] = b;
+
+      if ((b & std::byte{0x80}) == std::byte(0x00)) break;
     }
 
     WriteBytes(
-        static_cast<std::span<std::byte>>(buffer).subspan(0, byte_count));
+        static_cast<std::span<std::byte>>(buffer).subspan(0, byte_count + 1));
   }
 
   inline void WriteVarString(std::u8string_view value) {
@@ -144,7 +142,7 @@ class Packet {
 
  private:
   std::vector<std::byte> data_;
-  size_t offset_;
+  size_t offset_ = 0;
 };
 
 }  // namespace vega::server::protocol

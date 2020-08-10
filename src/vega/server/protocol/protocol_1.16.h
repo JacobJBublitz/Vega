@@ -5,7 +5,7 @@
 #include <span>
 #include <string>
 
-#include "vega/net/tcp.h"
+#include "uvw.hpp"
 #include "vega/server/protocol/packet.h"
 #include "vega/server/protocol/protocol.h"
 
@@ -17,7 +17,7 @@ class Protocol_1_16 : public Protocol {
 
   enum class State { kHandshake = 0, kStatus = 1, kLogin = 2, kPlay = 3 };
 
-  Protocol_1_16(net::TcpClient &socket);
+  Protocol_1_16(uvw::TCPHandle &socket);
   ~Protocol_1_16() override;
 
   virtual bool HandlePacket(Packet packet);
@@ -32,7 +32,7 @@ class Protocol_1_16 : public Protocol {
   void SendDisconnect() override;
 
  private:
-  net::TcpClient &socket_;
+  uvw::TCPHandle &socket_;
   State state_ = State::kHandshake;
 };
 

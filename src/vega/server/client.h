@@ -4,21 +4,23 @@
 #include <memory>
 #include <string>
 
-#include "vega/net/tcp.h"
+#include "uvw.hpp"
 #include "vega/server/protocol/protocol_1.16.h"
 
 namespace vega::server {
 
 class ClientConnection {
  public:
-  ClientConnection(net::TcpClient client);
+  ClientConnection(uvw::TCPHandle& socket);
   ~ClientConnection();
 
-  void Poll();
-
  private:
-  net::TcpClient socket_;
+  uvw::TCPHandle& socket_;
   std::unique_ptr<protocol::Protocol_1_16> protocol_;
+
+  void OnData(std::span<const std::byte> data);
+
+  static void OnDataHandler(uvw::DataEvent& event, uvw::TCPHandle& handle);
 };
 
 }  // namespace vega::server

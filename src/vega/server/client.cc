@@ -8,40 +8,52 @@ namespace vega::server {
 
 namespace {
 
-int32_t ReadVarInt(net::TcpClient &socket) {
-  int32_t value = 0;
-  for (size_t i = 0; i < protocol::Packet::kMaxVarIntBytes; ++i) {
-    std::byte b;
-    socket.Read({&b, 1});
-    value = (value << 7) | (std::to_integer<int32_t>(b) & 0x7f);
+int32_t ReadVarInt(std::span<const std::byte> data, size_t *num_bytes) {
+  int32_t result = 0;
+  size_t i;
+  for (i = 0; i < protocol::Packet::kMaxVarIntBytes; ++i) {
+    uint32_t value = std::to_integer<uint32_t>(data[i]);
+    result |= (value & 0x7f) << (7 * i);
 
-    if ((b & std::byte{0x80}) != std::byte{0}) break;
+    if ((value & 0x80) == 0) break;
   }
+  *num_bytes = i + 1;
 
-  return value;
+  return result;
 }
 
 }  // namespace
 
-ClientConnection::ClientConnection(net::TcpClient socket)
-    : socket_(std::move(socket)),
-      protocol_(std::make_unique<protocol::Protocol_1_16>(socket)) {}
+ClientConnection::ClientConnection(uvw::TCPHandle &socket)
+    : socket_(socket),
+      protocol_(std::make_unique<protocol::Protocol_1_16>(socket)) {
+  socket_.on<uvw::DataEvent>(OnDataHandler);
+}
 
 ClientConnection::~ClientConnection() = default;
 
-void ClientConnection::Poll() {
-  std::cout << "Read pkt len\n";
-  int32_t len = ReadVarInt(socket_);
-  std::cout << "pkt len: " << len << "\n";
+void ClientConnection::OnData(std::span<const std::byte> data) {
+  // TODO: Use data as part of a stream. Excess data should be copied to a
+  // buffer until a full packet is created.
 
-  std::vector<std::byte> buffer{static_cast<size_t>(len)};
-  socket_.Read(buffer);
+  size_t varint_bytes;
+  int32_t len = ReadVarInt(data, &varint_bytes);
 
-  protocol::Packet pkt(buffer);
+  protocol::Packet pkt(data.subspan(varint_bytes, len));
 
   if (!protocol_->HandlePacket(pkt)) {
-    throw std::runtime_error("Failed to handle packet");
+    // If we are unable to handle the packet, close the connection to the
+    // client.
+    socket_.close();
+    return;
   }
+}
+
+void ClientConnection::OnDataHandler(uvw::DataEvent &event,
+                                     uvw::TCPHandle &handle) {
+  auto conn = handle.data<ClientConnection>();
+  conn->OnData(
+      {reinterpret_cast<const std::byte *>(event.data.get()), event.length});
 }
 
 }  // namespace vega::server
