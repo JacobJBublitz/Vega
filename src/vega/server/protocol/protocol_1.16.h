@@ -13,7 +13,7 @@ namespace vega::server::protocol {
 
 class Protocol_1_16 : public Protocol {
  public:
-  constexpr static int32_t kProtocolVersion = 735;
+  constexpr static int32_t kProtocolVersion = 751;
 
   enum class State { kHandshake = 0, kStatus = 1, kLogin = 2, kPlay = 3 };
 
@@ -26,10 +26,12 @@ class Protocol_1_16 : public Protocol {
   virtual bool HandlePacketStatusPing(Packet packet);
   virtual bool HandlePacketStatusRequest(Packet packet);
 
+  virtual bool HandlePacketLoginStart(Packet packet);
+
   virtual void SendPacketStatusPong(int64_t payload);
   virtual void SendPacketStatusResponse(std::u8string_view response);
 
-  void SendDisconnect() override;
+  void SendDisconnect(std::u8string_view reason) override;
 
  private:
   uvw::TCPHandle &socket_;

@@ -17,9 +17,12 @@ constexpr int32_t kPktLoginStartId = 0x00;
 constexpr int32_t kPktLoginDisconnectId = 0x00;
 
 constexpr std::u8string_view kTestStatusResponse =
-    u8"{\"version\":{\"name\":\"1.16.1\",\"protocol\":736},\"players\":{"
+    u8"{\"version\":{\"name\":\"1.16.1\",\"protocol\":751},\"players\":{"
     u8"\"max\":420,\"online\":69,\"sample\":[]},\"description\":{\"text\":"
     u8"\"Hello, world!\nTesting\nAnother Line\"}}";
+
+constexpr std::u8string_view kDisconnectText =
+    u8"{\"text\":\"Not yet implemented\"}";
 
 }  // namespace
 
@@ -61,6 +64,10 @@ bool Protocol_1_16::HandlePacket(Packet packet) {
         return false;
     }
   } else if (state_ == State::kLogin) {
+    switch (packet_id) {
+      case kPktLoginStartId:
+        return HandlePacketLoginStart(packet);
+    }
     std::cerr << "Unknown login packet " << std::hex << packet_id << std::dec
               << "\n";
     return false;
@@ -75,29 +82,15 @@ bool Protocol_1_16::HandlePacket(Packet packet) {
   }
 }
 
-bool Protocol_1_16::HandlePacketStatusPing(Packet packet) {
-  int64_t payload = packet.ReadLong();
-
-  SendPacketStatusPong(payload);
-  return true;
-}
-
-bool Protocol_1_16::HandlePacketStatusRequest(Packet packet) {
-  std::cout << "Handling status request\n";
-  SendPacketStatusResponse(kTestStatusResponse);
-
-  return true;
-}
-
 void Protocol_1_16::SendPacket(Packet packet) {
   size_t buffer_size = util::kMaxVarIntBytes + packet.Data().size();
   auto buffer = new char[buffer_size];
 
   auto data = std::unique_ptr<char[]>(buffer);
 
-  auto pkt_len_size_bytes = util::WriteVarInt(
-      static_cast<int32_t>(packet.Data().size()),
-      std::as_writable_bytes(std::span{buffer, buffer_size}));
+  auto pkt_len_size_bytes =
+      util::WriteVarInt(static_cast<int32_t>(packet.Data().size()),
+                        std::as_writable_bytes(std::span{buffer, buffer_size}));
   // TODO: Handle error
 
   std::memcpy(data.get() + pkt_len_size_bytes, packet.Data().data(),
@@ -105,6 +98,25 @@ void Protocol_1_16::SendPacket(Packet packet) {
   socket_.write(
       std::move(data),
       static_cast<unsigned int>(pkt_len_size_bytes + packet.Data().size()));
+}
+
+bool Protocol_1_16::HandlePacketStatusPing(Packet packet) {
+  int64_t payload = packet.ReadLong();
+
+  SendPacketStatusPong(payload);
+  return true;
+}
+
+bool Protocol_1_16::HandlePacketStatusRequest([[maybe_unused]] Packet packet) {
+  std::cout << "Handling status request\n";
+  SendPacketStatusResponse(kTestStatusResponse);
+
+  return true;
+}
+
+bool Protocol_1_16::HandlePacketLoginStart([[maybe_unused]] Packet packet) {
+  SendDisconnect(kDisconnectText);
+  return true;
 }
 
 void Protocol_1_16::SendPacketStatusPong(int64_t payload) {
@@ -123,8 +135,12 @@ void Protocol_1_16::SendPacketStatusResponse(std::u8string_view response) {
   SendPacket(packet);
 }
 
-void Protocol_1_16::SendDisconnect() {
-  // TODO: Implement
+void Protocol_1_16::SendDisconnect(std::u8string_view reason) {
+  Packet packet;
+  packet.WriteVarInt(kPktLoginDisconnectId);
+  packet.WriteVarString(reason);
+
+  SendPacket(packet);
 }
 
 }  // namespace vega::server::protocol

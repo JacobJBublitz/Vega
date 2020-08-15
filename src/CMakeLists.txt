@@ -4,12 +4,13 @@ set(COMMON_LIBRARIES
 )
 set(COMMON_SOURCES
     vega/compiler.h
-    vega/net/ip.h
-    vega/net/tcp.cc
-    vega/net/tcp.h
-    vega/net/detail/tcp.h
+    vega/util/varint.h
 )
 
+target_compile_options(Vega_Server PRIVATE
+    $<$<CXX_COMPILER_ID:MSVC>:/W /WX>
+    $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:GNU>>:-Wall -Wextra -pedantic -Werror>
+)
 target_include_directories(Vega_Server PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
