@@ -1,6 +1,7 @@
 set(COMMON_LIBRARIES
     uv_a # Staticly linked version of libuv
     uvw::uvw
+    nlohmann_json::nlohmann_json
 )
 set(COMMON_SOURCES
     vega/compiler.h

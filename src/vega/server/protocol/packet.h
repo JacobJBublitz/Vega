@@ -2,10 +2,13 @@
 
 #include <array>
 #include <bit>
+#include <climits>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <cuchar>
 #include <span>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -136,7 +139,7 @@ class Packet {
 
   inline void WriteVarString(std::u8string_view value) {
     WriteVarInt(static_cast<int32_t>(value.size()));
-    WriteBytes(std::as_bytes(static_cast<std::span<const char8_t>>(value)));
+    WriteBytes(std::as_bytes(std::span{value}));
   }
 
   [[nodiscard]] constexpr std::span<const std::byte> Data() const noexcept {
