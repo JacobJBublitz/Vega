@@ -40,7 +40,7 @@ constexpr size_t WriteVarNumber(Type value,
   do {
     if (written_bytes >= buffer.size()) return 0;
 
-    auto temp = std::byte{uvalue & 0x7f};
+    auto temp = std::byte(uvalue & 0x7f);
     uvalue >>= 7;
     if (uvalue != 0) temp |= std::byte{0x80};
 
