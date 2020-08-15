@@ -17,7 +17,7 @@ constexpr std::pair<Type, size_t> ReadVarNumber(
     std::span<const std::byte, Extent> buffer) noexcept {
   Type result = 0;
   size_t bytes_read = 0;
-  uint8_t value = 0;
+  uint8_t value;
   do {
     if (bytes_read >= buffer.size())
       return {static_cast<Type>(VarIntError::kBufferTooSmall), 0};
@@ -25,8 +25,8 @@ constexpr std::pair<Type, size_t> ReadVarNumber(
       return {static_cast<Type>(VarIntError::kInvalid), 0};
 
     value = std::to_integer<uint8_t>(buffer[bytes_read++]);
-    result |= (value & 0x7f) << (7 * (bytes_read - 1));
-  } while ((value & 0x80) != 0);
+    result |= (value & 0x7fu) << (7 * (bytes_read - 1));
+  } while ((value & 0x80u) != 0);
 
   return {result, bytes_read};
 }

@@ -4,6 +4,7 @@
 #include <bit>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <span>
 #include <string>
 #include <vector>
@@ -18,7 +19,7 @@ class Packet {
   constexpr static size_t kMaxVarLongBytes = 10;
 
   Packet();
-  Packet(std::span<const std::byte> data);
+  explicit Packet(std::span<const std::byte> data);
 
   inline std::byte ReadByte() { return ReadBytes<1>().front(); }
 
@@ -26,7 +27,7 @@ class Packet {
 
   template <size_t S>
   std::array<std::byte, S> ReadBytes() {
-    std::array<std::byte, S> buffer;
+    std::array<std::byte, S> buffer{};
     ReadBytes(buffer);
     return buffer;
   }
@@ -81,7 +82,7 @@ class Packet {
   void WriteBytes(std::span<const std::byte> bytes);
 
   inline void WriteLong(int64_t value) {
-    std::array<std::byte, sizeof(value)> buffer;
+    std::array<std::byte, sizeof(value)> buffer{};
 
     std::memcpy(buffer.data(), &value, sizeof(value));
 
@@ -94,14 +95,14 @@ class Packet {
   }
 
   inline void WriteVarInt(int32_t value) {
-    std::array<std::byte, kMaxVarIntBytes> buffer;
+    std::array<std::byte, kMaxVarIntBytes> buffer{};
 
-    uint32_t uvalue = static_cast<uint32_t>(value);
+    auto uvalue = static_cast<uint32_t>(value);
     size_t byte_count;
     for (byte_count = 0; byte_count < buffer.size(); ++byte_count) {
-      std::byte b = std::byte{uvalue & 0x7f};
+      auto b = std::byte(uvalue & 0x7fu);
 
-      uvalue >>= 7;
+      uvalue >>= 7u;
       if (uvalue != 0) b |= std::byte{0x80};
 
       buffer[byte_count] = b;
@@ -114,14 +115,14 @@ class Packet {
   }
 
   inline void WriteVarLong(int64_t value) {
-    std::array<std::byte, kMaxVarLongBytes> buffer;
+    std::array<std::byte, kMaxVarLongBytes> buffer{};
 
-    uint64_t uvalue = static_cast<uint64_t>(value);
+    auto uvalue = static_cast<uint64_t>(value);
     size_t byte_count;
     for (byte_count = 0; byte_count < buffer.size(); ++byte_count) {
-      std::byte b = std::byte{uvalue & 0x7f};
+      auto b = std::byte(uvalue & 0x7fu);
 
-      uvalue >>= 7;
+      uvalue >>= 7u;
       if (uvalue != 0) b |= std::byte{0x80};
 
       buffer[byte_count] = b;
@@ -138,7 +139,9 @@ class Packet {
     WriteBytes(std::as_bytes(static_cast<std::span<const char8_t>>(value)));
   }
 
-  constexpr std::span<const std::byte> Data() const noexcept { return data_; }
+  [[nodiscard]] constexpr std::span<const std::byte> Data() const noexcept {
+    return data_;
+  }
 
  private:
   std::vector<std::byte> data_;

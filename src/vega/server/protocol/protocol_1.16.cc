@@ -97,7 +97,7 @@ void Protocol_1_16::SendPacket(Packet packet) {
 
   auto pkt_len_size_bytes = util::WriteVarInt(
       static_cast<int32_t>(packet.Data().size()),
-      std::span{reinterpret_cast<std::byte*>(buffer), buffer_size});
+      std::as_writable_bytes(std::span{buffer, buffer_size}));
   // TODO: Handle error
 
   std::memcpy(data.get() + pkt_len_size_bytes, packet.Data().data(),

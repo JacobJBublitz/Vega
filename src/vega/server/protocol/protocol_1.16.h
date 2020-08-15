@@ -17,7 +17,7 @@ class Protocol_1_16 : public Protocol {
 
   enum class State { kHandshake = 0, kStatus = 1, kLogin = 2, kPlay = 3 };
 
-  Protocol_1_16(uvw::TCPHandle &socket);
+  explicit Protocol_1_16(uvw::TCPHandle &socket);
   ~Protocol_1_16() override;
 
   virtual bool HandlePacket(Packet packet);
